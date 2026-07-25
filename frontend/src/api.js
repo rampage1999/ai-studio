@@ -40,6 +40,11 @@ export const api = {
       body: JSON.stringify(data),
     }),
 
+  generateNextChapter: (name) =>
+    request(`/projects/${encodeURIComponent(name)}/chapters/generate`, {
+      method: 'POST',
+    }),
+
   updateChapter: (name, chapterId, data) =>
     request(`/projects/${encodeURIComponent(name)}/chapters/${encodeURIComponent(chapterId)}`, {
       method: 'PATCH',

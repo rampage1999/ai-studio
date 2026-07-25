@@ -38,6 +38,7 @@ function App() {
   const [editChapterTitle, setEditChapterTitle] = useState('')
   const [editChapterContent, setEditChapterContent] = useState('')
   const [savingChapter, setSavingChapter] = useState(false)
+  const [generatingChapter, setGeneratingChapter] = useState(false)
 
   // Portrait generation
   const [generatingPortraitId, setGeneratingPortraitId] = useState(null)
@@ -164,6 +165,19 @@ function App() {
     const d = await api.addChapter(currentProject, newChapter)
     setBible(d.bible)
     setNewChapter({ title: '', content: '' })
+  }
+
+  const writeNextChapter = async () => {
+    setGeneratingChapter(true)
+    try {
+      const d = await api.generateNextChapter(currentProject)
+      setBible(d.bible)
+      setActiveTab('chapters')
+    } catch (err) {
+      console.error('Chapter generation failed:', err)
+      alert(`Generation failed: ${err.message}`)
+    }
+    setGeneratingChapter(false)
   }
 
   const addOutlinePoint = async (e) => {
@@ -445,6 +459,13 @@ function App() {
                     ))}
                   </div>
                 ) : <p className="empty-hint">No chapters yet. Ask the Director to write one.</p>}
+                <button
+                  onClick={writeNextChapter}
+                  className="btn-generate-chapter"
+                  disabled={generatingChapter}
+                >
+                  {generatingChapter ? '✨ The Director is writing...' : '✍ Write Next Chapter'}
+                </button>
               </div>
             )}
 

@@ -153,6 +153,130 @@ async def api_add_chapter(name: str, req: ChapterCreateRequest):
         raise HTTPException(404)
 
 
+@router.post("/projects/{name}/chapters/generate")
+async def api_generate_next_chapter(name: str):
+    """Auto-generate the next chapter from Bible context using the Director agent."""
+    from backend.core.project_manager import load_project, add_chapter
+    from openai import AsyncOpenAI
+    import os
+
+    try:
+        bible = load_project(name)
+    except FileNotFoundError:
+        raise HTTPException(404, f"Project '{name}' not found")
+
+    # Build comprehensive context prompt
+    parts = []
+    parts.append(f"# {bible.get('title', name)}")
+    if bible.get("genre"):
+        parts.append(f"**Genre:** {bible['genre']}")
+    if bible.get("tone"):
+        parts.append(f"**Tone:** {bible['tone']}")
+    parts.append("")
+
+    if bible.get("overview"):
+        parts.append("## Overview")
+        parts.append(bible["overview"])
+        parts.append("")
+
+    if bible.get("story_outline"):
+        parts.append("## Story Outline")
+        for i, pt in enumerate(bible["story_outline"], 1):
+            parts.append(f"{i}. {pt}")
+        parts.append("")
+
+    if bible.get("world_rules"):
+        parts.append("## World Rules")
+        for r in bible["world_rules"]:
+            parts.append(f"- {r}")
+        parts.append("")
+
+    if bible.get("characters"):
+        parts.append("## Characters")
+        for ch in bible["characters"]:
+            desc = ch.get("description", "")
+            role = ch.get("role", "")
+            tag = f" ({role})" if role else ""
+            parts.append(f"- **{ch['name']}**{tag}: {desc}")
+        parts.append("")
+
+    if bible.get("locations"):
+        parts.append("## Locations")
+        for loc in bible["locations"]:
+            desc = loc.get("description", "")
+            suffix = f" — {desc}" if desc else ""
+            parts.append(f"- **{loc['name']}**{suffix}")
+        parts.append("")
+
+    existing = bible.get("chapters", [])
+    chapter_num = len(existing) + 1
+
+    if existing:
+        parts.append(f"## Existing Chapters ({len(existing)} total)")
+        for i, ch in enumerate(existing, 1):
+            title = ch.get("title", f"Chapter {i}")
+            content_preview = ch.get("content", "")[:300]
+            parts.append(f"  **{title}**: {content_preview}{'...' if len(ch.get('content', '')) > 300 else ''}")
+        parts.append("")
+
+    system_prompt = f"""You are the Writer Agent for the AI Studio. You are writing Chapter {chapter_num} of a story.
+
+Write the next chapter based on the project Bible below. Follow these rules:
+
+1. Continue naturally from where the last chapter ended
+2. Advance the plot per the story outline
+3. Use established characters and locations — do not introduce new main characters unless the outline calls for it
+4. Match the genre and tone
+5. Be substantive — at least 500 words, vivid prose, show don't tell
+6. Use the style of the existing chapters
+
+Return your response with the chapter title on the first line starting with ##, then a blank line, then the full chapter content.
+
+Example:
+## The Darkness Rises
+
+Then the full chapter content goes here..."""
+
+    prompt = "\n".join(parts)
+
+    client = AsyncOpenAI(
+        api_key=os.environ.get("OPENAI_API_KEY", ""),
+        base_url=os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1"),
+    )
+    model = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
+
+    response = await client.chat.completions.create(
+        model=model,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": prompt},
+        ],
+        temperature=0.8,
+        max_tokens=4096,
+    )
+
+    content = response.choices[0].message.content or ""
+
+    # Parse title from first line
+    lines = content.strip().split("\n", 1)
+    chapter_title = "Chapter " + str(chapter_num)
+    chapter_content = content
+
+    if lines[0].startswith("##"):
+        chapter_title = lines[0].lstrip("#").strip()
+        chapter_content = lines[1].strip() if len(lines) > 1 else ""
+
+    # Save to Bible
+    bible = add_chapter(name, {"title": chapter_title, "content": chapter_content})
+    chapter = bible["chapters"][-1]
+
+    return {
+        "success": True,
+        "chapter": chapter,
+        "chapter_number": chapter_num,
+    }
+
+
 @router.patch("/projects/{name}/chapters/{chapter_id}")
 async def api_update_chapter(name: str, chapter_id: str, req: ChapterUpdateRequest):
     """Update a chapter's content or title."""
