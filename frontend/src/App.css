@@ -707,3 +707,49 @@ ul.bible-list li { margin-bottom: 4px; font-size: 14px; color: var(--text-dim); 
   margin-top: 4px;
   line-height: 1.5;
 }
+
+/* ── Character Portraits ── */
+.character-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.character-portrait-wrapper {
+  width: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--bg2);
+  cursor: pointer;
+}
+.character-portrait {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 320px;
+  object-fit: cover;
+  transition: transform 0.2s;
+}
+.character-portrait:hover {
+  transform: scale(1.02);
+}
+.btn-portrait {
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+  margin-top: auto;
+}
+.btn-portrait:hover:not(:disabled) {
+  background: var(--surface);
+  border-color: var(--accent-dim);
+  color: var(--accent);
+}
+.btn-portrait:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}

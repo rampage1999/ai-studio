@@ -24,6 +24,7 @@ from backend.core.project_manager import (
     set_overview,
     delete_character,
     delete_location,
+    set_character_portrait,
     add_story_outline_point,
     delete_story_outline_point,
     add_world_rule,
@@ -195,6 +196,77 @@ async def api_delete_character(name: str, character_id: str):
         raise HTTPException(404)
     except ValueError as e:
         raise HTTPException(404, str(e))
+
+
+class CharacterPortraitRequest(BaseModel):
+    prompt: str = ""
+    negative_prompt: str = ""
+    model: str = "dreamShaper.safetensors"
+    width: int = 768
+    height: int = 1024
+    seed: int = -1
+    steps: int = 25
+    cfg: float = 7.0
+
+
+@router.post("/projects/{name}/characters/{character_id}/portrait")
+async def api_generate_character_portrait(name: str, character_id: str, req: CharacterPortraitRequest):
+    """Generate a character portrait via ComfyUI and associate it with the character."""
+    # Load character info for prompt building
+    from backend.core.project_manager import load_project
+    try:
+        bible = load_project(name)
+        character = None
+        for ch in bible["characters"]:
+            if ch.get("id") == character_id:
+                character = ch
+                break
+        if not character:
+            raise HTTPException(404, f"Character '{character_id}' not found")
+    except FileNotFoundError:
+        raise HTTPException(404, f"Project '{name}' not found")
+
+    # Auto-build prompt if none provided
+    prompt = req.prompt
+    if not prompt:
+        char_name = character.get("name", "Character")
+        char_desc = character.get("description", "")
+        char_role = character.get("role", "")
+        parts = [f"character portrait of {char_name}"]
+        if char_role:
+            parts.append(f", {char_role}")
+        if char_desc:
+            parts.append(f", {char_desc[:200]}")
+        parts.append("portrait shot, detailed character design, high quality, sharp focus")
+        prompt = "".join(parts)
+
+    negative = req.negative_prompt or "worst quality, low quality, blurry, distorted, ugly, deformed, bad anatomy, extra limbs"
+
+    # Generate via ComfyUI
+    from backend.agents.artist import generate_image
+    result = generate_image(
+        prompt=prompt,
+        negative_prompt=negative,
+        model=req.model,
+        width=req.width,
+        height=req.height,
+        seed=req.seed,
+        steps=req.steps,
+        cfg=req.cfg,
+        project_name=name,
+    )
+
+    if "error" in result:
+        raise HTTPException(500, detail=result["error"])
+
+    # Associate portrait with character in Bible
+    bible = set_character_portrait(name, character_id, result["filename"])
+
+    return {
+        "success": True,
+        "result": result,
+        "bible": bible,
+    }
 
 
 @router.delete("/projects/{name}/locations/{location_id}")

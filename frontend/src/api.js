@@ -57,6 +57,12 @@ export const api = {
       method: 'DELETE',
     }),
 
+  generateCharacterPortrait: (name, characterId, params) =>
+    request(`/projects/${encodeURIComponent(name)}/characters/${encodeURIComponent(characterId)}/portrait`, {
+      method: 'POST',
+      body: JSON.stringify(params),
+    }),
+
   addLocation: (name, data) =>
     request(`/projects/${encodeURIComponent(name)}/locations`, {
       method: 'POST',

@@ -192,6 +192,17 @@ def delete_location(project_name: str, location_id: str) -> dict:
     return save_project(project_name, bible)
 
 
+def set_character_portrait(project_name: str, character_id: str, portrait_filename: str) -> dict:
+    """Set the portrait image filename on a character entry."""
+    bible = load_project(project_name)
+    for ch in bible["characters"]:
+        if ch.get("id") == character_id:
+            ch["portrait"] = portrait_filename
+            _add_to_version_history(bible, f"Set portrait for character: {ch.get('name', character_id)}")
+            return save_project(project_name, bible)
+    raise ValueError(f"Character '{character_id}' not found")
+
+
 def add_story_outline_point(project_name: str, point: str) -> dict:
     """Add a story outline point."""
     bible = load_project(project_name)

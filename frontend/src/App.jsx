@@ -39,6 +39,10 @@ function App() {
   const [editChapterContent, setEditChapterContent] = useState('')
   const [savingChapter, setSavingChapter] = useState(false)
 
+  // Portrait generation
+  const [generatingPortraitId, setGeneratingPortraitId] = useState(null)
+  const [portraitFullscreen, setPortraitFullscreen] = useState(null)
+
   // Story outline & world rules
   const [newOutlinePoint, setNewOutlinePoint] = useState('')
   const [newWorldRule, setNewWorldRule] = useState('')
@@ -142,6 +146,17 @@ function App() {
     if (!confirm('Remove this location from the Bible?')) return
     const d = await api.deleteLocation(currentProject, locId)
     setBible(d.bible)
+  }
+
+  const generatePortrait = async (ch) => {
+    setGeneratingPortraitId(ch.id)
+    try {
+      const d = await api.generateCharacterPortrait(currentProject, ch.id, {})
+      setBible(d.bible)
+    } catch (err) {
+      console.error('Portrait generation failed:', err)
+    }
+    setGeneratingPortraitId(null)
   }
 
   const addChapter = async (e) => {
@@ -444,13 +459,30 @@ function App() {
                 {bible.characters?.length > 0 ? (
                   <div className="card-grid">
                     {bible.characters.map((ch, i) => (
-                      <div key={ch.id || i} className="card">
+                      <div key={ch.id || i} className="card character-card">
+                        {ch.portrait && (
+                          <div className="character-portrait-wrapper">
+                            <img
+                              src={imgUrl(ch.portrait)}
+                              alt={ch.name}
+                              className="character-portrait"
+                              onClick={() => setPortraitFullscreen(imgUrl(ch.portrait))}
+                            />
+                          </div>
+                        )}
                         <div className="card-header-row">
                           <h4>{ch.name}</h4>
                           <button onClick={() => deleteChar(ch.id)} className="delete-sm-btn" title="Delete character">✕</button>
                         </div>
                         {ch.role && <span className="badge">{ch.role}</span>}
                         {ch.description && <p>{ch.description}</p>}
+                        <button
+                          onClick={() => generatePortrait(ch)}
+                          className="btn-portrait"
+                          disabled={generatingPortraitId === ch.id}
+                        >
+                          {generatingPortraitId === ch.id ? 'Generating...' : ch.portrait ? '🔄 Regenerate Portrait' : '🎨 Generate Portrait'}
+                        </button>
                       </div>
                     ))}
                   </div>
@@ -639,6 +671,15 @@ function App() {
                     <div className="art-fullscreen" onClick={e => e.stopPropagation()}>
                       <button className="art-close" onClick={() => setArtFullscreen(null)}>✕</button>
                       <img src={artFullscreen} alt="Full size" className="art-fullscreen-img" />
+                    </div>
+                  </div>
+                )}
+
+                {portraitFullscreen && (
+                  <div className="modal-overlay" onClick={() => setPortraitFullscreen(null)}>
+                    <div className="art-fullscreen" onClick={e => e.stopPropagation()}>
+                      <button className="art-close" onClick={() => setPortraitFullscreen(null)}>✕</button>
+                      <img src={portraitFullscreen} alt="Character portrait" className="art-fullscreen-img" />
                     </div>
                   </div>
                 )}
