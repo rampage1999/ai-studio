@@ -7,6 +7,7 @@ function App() {
   const [currentProject, setCurrentProject] = useState(null)
   const [bible, setBible] = useState(null)
   const [showCreate, setShowCreate] = useState(false)
+  const [showExport, setShowExport] = useState(false)
   const [newProject, setNewProject] = useState({ name: '', title: '', genre: '', tone: '' })
   const [chat, setChat] = useState({ messages: [], input: '' })
   const [chatLoading, setChatLoading] = useState(false)
@@ -200,6 +201,16 @@ function App() {
                 <button className={activeTab === 'characters' ? 'active' : ''} onClick={() => setActiveTab('characters')}>Characters</button>
                 <button className={activeTab === 'locations' ? 'active' : ''} onClick={() => setActiveTab('locations')}>Locations</button>
                 <button className={activeTab === 'art' ? 'active' : ''} onClick={() => setActiveTab('art')}>Art</button>
+                <div className="export-dropdown">
+                  <button className="export-btn" onClick={() => setShowExport(!showExport)} title="Export">⬇ Export</button>
+                  {showExport && (
+                    <div className="export-menu">
+                      <a href={api.exportProject(currentProject, 'markdown')} download onClick={() => setShowExport(false)}>📄 Markdown (.md)</a>
+                      <a href={api.exportProject(currentProject, 'pdf')} download onClick={() => setShowExport(false)}>📕 PDF</a>
+                      <a href={api.exportProject(currentProject, 'epub')} download onClick={() => setShowExport(false)}>📖 EPUB</a>
+                    </div>
+                  )}
+                </div>
               </div>
             </header>
 

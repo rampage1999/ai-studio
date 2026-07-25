@@ -264,3 +264,63 @@ async def api_serve_image(name: str, filename: str):
     mime, _ = mimetypes.guess_type(str(img_path))
     return FileResponse(str(img_path), media_type=mime or "image/png")
 
+
+# ──────────────────────────────────────────
+#  Export Routes
+# ──────────────────────────────────────────
+
+
+@router.get("/projects/{name}/export")
+async def api_export_project_meta(name: str):
+    """Get available export formats for a project."""
+    return {
+        "formats": ["markdown", "pdf", "epub"],
+        "project": name,
+    }
+
+
+@router.get("/projects/{name}/export/markdown")
+async def api_export_markdown(name: str):
+    """Export project as Markdown and serve as download."""
+    from backend.core.exporter import export_markdown
+    try:
+        content = export_markdown(name)
+        from fastapi.responses import PlainTextResponse
+        return PlainTextResponse(
+            content,
+            media_type="text/markdown",
+            headers={"Content-Disposition": f'attachment; filename="{name}.md"'},
+        )
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e))
+
+
+@router.get("/projects/{name}/export/pdf")
+async def api_export_pdf(name: str):
+    """Export project as PDF and serve as download."""
+    from backend.core.exporter import export_pdf
+    try:
+        path = export_pdf(name)
+        return FileResponse(
+            path,
+            media_type="application/pdf",
+            filename=f"{name}.pdf",
+        )
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e))
+
+
+@router.get("/projects/{name}/export/epub")
+async def api_export_epub(name: str):
+    """Export project as EPUB and serve as download."""
+    from backend.core.exporter import export_epub
+    try:
+        path = export_epub(name)
+        return FileResponse(
+            path,
+            media_type="application/epub+zip",
+            filename=f"{name}.epub",
+        )
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e))
+

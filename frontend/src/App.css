@@ -465,3 +465,50 @@ ul.bible-list li { margin-bottom: 4px; font-size: 14px; color: var(--text-dim); 
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+
+/* Export Dropdown */
+.export-dropdown {
+  position: relative;
+  margin-left: auto;
+}
+.export-btn {
+  padding: 10px 16px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  cursor: pointer;
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.export-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.export-menu {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  z-index: 50;
+  min-width: 180px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+.export-menu a {
+  display: block;
+  padding: 10px 16px;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 13px;
+  transition: background 0.15s;
+}
+.export-menu a:hover {
+  background: var(--surface);
+  color: var(--accent);
+}

@@ -72,4 +72,7 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(params),
     }),
+
+  exportProject: (name, format) =>
+    `${API_BASE}/projects/${encodeURIComponent(name)}/export/${format}`,
 }
