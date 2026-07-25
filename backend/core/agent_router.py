@@ -8,6 +8,7 @@ from backend.agents.director import DirectorAgent
 from backend.agents.writer import WriterAgent
 from backend.agents.editor import EditorAgent
 from backend.agents.lore import LoreAgent
+from backend.agents.artist import ArtistAgent
 
 
 class AgentRouter:
@@ -18,6 +19,7 @@ class AgentRouter:
         self.writer = WriterAgent(api_key, base_url, model)
         self.editor = EditorAgent(api_key, base_url, model)
         self.lore = LoreAgent(api_key, base_url, model)
+        self.artist = ArtistAgent()
 
     async def chat(self, message: str, project_name: str, messages: list[dict]) -> str:
         """
@@ -32,5 +34,6 @@ class AgentRouter:
                 "writer": self.writer,
                 "editor": self.editor,
                 "lore": self.lore,
+                "artist": self.artist,
             },
         )

@@ -17,6 +17,21 @@ function App() {
   const [overview, setOverview] = useState('')
   const chatEnd = useRef(null)
 
+  // Art generation state
+  const [models, setModels] = useState([])
+  const [artForm, setArtForm] = useState({
+    prompt: '',
+    negative_prompt: '',
+    model: 'dreamShaper.safetensors',
+    width: 1024,
+    height: 1024,
+    steps: 25,
+    cfg: 7.0,
+  })
+  const [generating, setGenerating] = useState(false)
+  const [artOutput, setArtOutput] = useState(null)
+  const [artFullscreen, setArtFullscreen] = useState(null)
+
   useEffect(() => {
     api.listProjects().then(d => setProjects(d.projects)).catch(console.error)
   }, [])
@@ -30,6 +45,9 @@ function App() {
     setOverview(d.bible.overview || '')
     setChat({ messages: [{ role: 'system', content: `Loaded: ${d.bible.title} (${d.bible.genre})` }], input: '' })
     setActiveTab('chat')
+    setArtOutput(null)
+    // Fetch available ComfyUI models
+    api.listComfyModels?.().then(r => setModels(r.models || [])).catch(() => {})
   }
 
   const createProject = async (e) => {
@@ -89,6 +107,29 @@ function App() {
       setChat(c => ({ ...c, messages: [...c.messages, { role: 'assistant', content: `Error: ${err.message}` }] }))
     }
     setChatLoading(false)
+  }
+
+  const generateImage = async (e) => {
+    e.preventDefault()
+    if (!artForm.prompt.trim() || generating) return
+    setGenerating(true)
+    setArtOutput(null)
+    try {
+      const d = await api.generateImage(currentProject, artForm)
+      setArtOutput(d.result)
+      // Refresh Bible to get updated generated_images
+      const proj = await api.getProject(currentProject)
+      setBible(proj.bible)
+    } catch (err) {
+      setArtOutput({ error: err.message })
+    }
+    setGenerating(false)
+  }
+
+  // Build image URL helper
+  const imgUrl = (filename) => {
+    const base = import.meta.env.VITE_API_BASE || '/api'
+    return `${base}/projects/${currentProject}/images/${filename}`
   }
 
   return (
@@ -158,6 +199,7 @@ function App() {
                 <button className={activeTab === 'chapters' ? 'active' : ''} onClick={() => setActiveTab('chapters')}>Chapters</button>
                 <button className={activeTab === 'characters' ? 'active' : ''} onClick={() => setActiveTab('characters')}>Characters</button>
                 <button className={activeTab === 'locations' ? 'active' : ''} onClick={() => setActiveTab('locations')}>Locations</button>
+                <button className={activeTab === 'art' ? 'active' : ''} onClick={() => setActiveTab('art')}>Art</button>
               </div>
             </header>
 
@@ -267,6 +309,126 @@ function App() {
                     ))}
                   </div>
                 ) : <p className="empty-hint">No locations yet.</p>}
+              </div>
+            )}
+
+            {activeTab === 'art' && (
+              <div className="art-panel">
+                <form onSubmit={generateImage} className="inline-form">
+                  <textarea
+                    placeholder="Describe the image you want to create..."
+                    value={artForm.prompt}
+                    onChange={e => setArtForm(a => ({ ...a, prompt: e.target.value }))}
+                    rows={3}
+                    required
+                  />
+                  <input
+                    placeholder="Negative prompt"
+                    value={artForm.negative_prompt}
+                    onChange={e => setArtForm(a => ({ ...a, negative_prompt: e.target.value }))}
+                  />
+                  <div className="art-controls">
+                    <select
+                      value={artForm.model}
+                      onChange={e => setArtForm(a => ({ ...a, model: e.target.value }))}
+                    >
+                      {models.length > 0 ? models.map(m => (
+                        <option key={m} value={m}>{m.replace('.safetensors', '')}</option>
+                      )) : (
+                        <option value="dreamShaper.safetensors">dreamShaper</option>
+                      )}
+                    </select>
+                    <input
+                      type="number" placeholder="Width" value={artForm.width}
+                      onChange={e => setArtForm(a => ({ ...a, width: parseInt(e.target.value) || 1024 }))}
+                      min={256} max={2048} step={64}
+                      className="art-num"
+                    />
+                    <span className="art-x">x</span>
+                    <input
+                      type="number" placeholder="Height" value={artForm.height}
+                      onChange={e => setArtForm(a => ({ ...a, height: parseInt(e.target.value) || 1024 }))}
+                      min={256} max={2048} step={64}
+                      className="art-num"
+                    />
+                    <input
+                      type="number" placeholder="Steps" value={artForm.steps}
+                      onChange={e => setArtForm(a => ({ ...a, steps: parseInt(e.target.value) || 25 }))}
+                      min={1} max={100}
+                      className="art-num-short"
+                    />
+                    <input
+                      type="number" placeholder="CFG" value={artForm.cfg}
+                      onChange={e => setArtForm(a => ({ ...a, cfg: parseFloat(e.target.value) || 7.0 }))}
+                      min={1} max={30} step={0.5}
+                      className="art-num-short"
+                    />
+                    <button type="submit" className="btn-primary" disabled={generating}>
+                      {generating ? 'Generating...' : 'Generate'}
+                    </button>
+                  </div>
+                </form>
+
+                {artOutput && artOutput.error && (
+                  <div className="art-error">
+                    <strong>Error:</strong> {artOutput.error}
+                  </div>
+                )}
+
+                {artOutput && artOutput.success && (
+                  <div className="art-result">
+                    <div className="art-image-wrapper">
+                      <img
+                        src={imgUrl(artOutput.filename)}
+                        alt={artForm.prompt}
+                        className="art-image"
+                        onClick={() => setArtFullscreen(imgUrl(artOutput.filename))}
+                      />
+                      <div className="art-meta">
+                        <span><strong>Seed:</strong> {artOutput.seed}</span>
+                        <span><strong>Model:</strong> {artOutput.model}</span>
+                        <span><strong>Size:</strong> {(artOutput.size_bytes / 1024).toFixed(0)} KB</span>
+                        <a href={imgUrl(artOutput.filename)} target="_blank" rel="noopener" className="art-download">Open Full Size</a>
+                      </div>
+                    </div>
+                    <div className="art-prompt-display">
+                      <strong>Prompt:</strong> {artForm.prompt}
+                    </div>
+                  </div>
+                )}
+
+                <div className="art-gallery-section">
+                  <h3>Gallery</h3>
+                  {bible.generated_images?.length > 0 ? (
+                    <div className="card-grid">
+                      {[...bible.generated_images].reverse().map((img, i) => (
+                        <div key={i} className="art-gallery-card">
+                          <img
+                            src={imgUrl(img.filename)}
+                            alt={img.prompt}
+                            className="art-thumb"
+                            onClick={() => setArtFullscreen(imgUrl(img.filename))}
+                          />
+                          <div className="art-thumb-meta">
+                            <p className="art-thumb-prompt">{img.prompt?.slice(0, 100)}{img.prompt?.length > 100 ? '...' : ''}</p>
+                            <span className="chapter-meta">{img.model?.replace('.safetensors', '')} · seed {img.seed}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="empty-hint">No images generated yet. Use the form above to create art.</p>
+                  )}
+                </div>
+
+                {artFullscreen && (
+                  <div className="modal-overlay" onClick={() => setArtFullscreen(null)}>
+                    <div className="art-fullscreen" onClick={e => e.stopPropagation()}>
+                      <button className="art-close" onClick={() => setArtFullscreen(null)}>✕</button>
+                      <img src={artFullscreen} alt="Full size" className="art-fullscreen-img" />
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

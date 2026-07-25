@@ -7,6 +7,11 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
+      '/studio/api': {
+        target: 'http://localhost:8800',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/studio/, ''),
+      },
       '/api': {
         target: 'http://localhost:8800',
         changeOrigin: true,

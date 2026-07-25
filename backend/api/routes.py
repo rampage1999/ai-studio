@@ -4,9 +4,11 @@ API Routes — endpoints for the AI Studio frontend.
 
 import json
 import os
+from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from backend.core.project_manager import (
@@ -22,6 +24,7 @@ from backend.core.project_manager import (
     set_overview,
 )
 from backend.core.agent_router import AgentRouter
+from backend.agents.artist import list_models, generate_image
 
 router = APIRouter(prefix="/api")
 
@@ -185,3 +188,79 @@ async def api_chat(req: ChatRequest):
 @router.get("/health")
 async def health():
     return {"status": "ok", "service": "ai-studio"}
+
+
+# ──────────────────────────────────────────
+#  ComfyUI / Image Generation Routes
+# ──────────────────────────────────────────
+
+
+@router.get("/comfyui/models")
+async def api_list_models():
+    """List available ComfyUI checkpoints."""
+    models = list_models()
+    return {"models": models}
+
+
+class GenerateRequest(BaseModel):
+    prompt: str
+    negative_prompt: str = ""
+    model: str = "dreamShaper.safetensors"
+    width: int = 1024
+    height: int = 1024
+    seed: int = -1
+    steps: int = 25
+    cfg: float = 7.0
+
+
+@router.post("/projects/{name}/generate")
+async def api_generate(name: str, req: GenerateRequest):
+    """Generate an image via ComfyUI and save to project."""
+    # Verify project exists first
+    from backend.core.project_manager import load_project
+    try:
+        load_project(name)
+    except FileNotFoundError:
+        raise HTTPException(404, f"Project '{name}' not found")
+
+    result = generate_image(
+        prompt=req.prompt,
+        negative_prompt=req.negative_prompt,
+        model=req.model,
+        width=req.width,
+        height=req.height,
+        seed=req.seed,
+        steps=req.steps,
+        cfg=req.cfg,
+        project_name=name,
+    )
+
+    if "error" in result:
+        raise HTTPException(500, detail=result["error"])
+
+    # Update the project Bible with the generated image entry
+    bible = load_project(name)
+    bible.setdefault("generated_images", []).append(result["generated_images_entry"])
+    from backend.core.project_manager import save_project
+    save_project(name, bible)
+
+    return {"success": True, "result": result}
+
+
+@router.get("/projects/{name}/images/{filename:path}")
+async def api_serve_image(name: str, filename: str):
+    """Serve a generated image from a project's images directory."""
+    data_dir = os.environ.get("STUDIO_DATA_DIR", "./projects")
+    img_path = Path(data_dir) / name / "images" / filename
+
+    if not img_path.exists():
+        # Check in the _generated fallback
+        img_path = Path(data_dir) / "_generated" / filename
+
+    if not img_path.exists() or not img_path.is_file():
+        raise HTTPException(404, f"Image '{filename}' not found")
+
+    import mimetypes
+    mime, _ = mimetypes.guess_type(str(img_path))
+    return FileResponse(str(img_path), media_type=mime or "image/png")
+

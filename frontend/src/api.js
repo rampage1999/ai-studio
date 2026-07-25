@@ -63,4 +63,13 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ message, project_name: projectName, messages }),
     }),
+
+  listComfyModels: () =>
+    request('/comfyui/models'),
+
+  generateImage: (name, params) =>
+    request(`/projects/${encodeURIComponent(name)}/generate`, {
+      method: 'POST',
+      body: JSON.stringify(params),
+    }),
 }
