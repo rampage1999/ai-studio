@@ -22,6 +22,14 @@ from backend.core.project_manager import (
     add_character,
     add_location,
     set_overview,
+    delete_character,
+    delete_location,
+    add_story_outline_point,
+    delete_story_outline_point,
+    add_world_rule,
+    delete_world_rule,
+    add_timeline_entry,
+    delete_timeline_entry,
 )
 from backend.core.agent_router import AgentRouter
 from backend.agents.artist import list_models, generate_image
@@ -175,6 +183,97 @@ async def api_add_location(name: str, req: LocationCreateRequest):
         return {"success": True, "location": loc}
     except FileNotFoundError:
         raise HTTPException(404)
+
+
+@router.delete("/projects/{name}/characters/{character_id}")
+async def api_delete_character(name: str, character_id: str):
+    """Delete a character from a project."""
+    try:
+        bible = delete_character(name, character_id)
+        return {"success": True, "bible": bible}
+    except FileNotFoundError:
+        raise HTTPException(404)
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+
+
+@router.delete("/projects/{name}/locations/{location_id}")
+async def api_delete_location(name: str, location_id: str):
+    """Delete a location from a project."""
+    try:
+        bible = delete_location(name, location_id)
+        return {"success": True, "bible": bible}
+    except FileNotFoundError:
+        raise HTTPException(404)
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+
+
+@router.post("/projects/{name}/outline")
+async def api_add_outline_point(name: str, data: dict):
+    """Add a story outline point."""
+    try:
+        bible = add_story_outline_point(name, data.get("point", ""))
+        return {"success": True, "bible": bible}
+    except FileNotFoundError:
+        raise HTTPException(404)
+
+
+@router.delete("/projects/{name}/outline/{index}")
+async def api_delete_outline_point(name: str, index: int):
+    """Delete a story outline point by index."""
+    try:
+        bible = delete_story_outline_point(name, index)
+        return {"success": True, "bible": bible}
+    except (FileNotFoundError, ValueError) as e:
+        raise HTTPException(404, str(e))
+
+
+@router.post("/projects/{name}/rules")
+async def api_add_world_rule(name: str, data: dict):
+    """Add a world rule."""
+    try:
+        bible = add_world_rule(name, data.get("rule", ""))
+        return {"success": True, "bible": bible}
+    except FileNotFoundError:
+        raise HTTPException(404)
+
+
+@router.delete("/projects/{name}/rules/{index}")
+async def api_delete_world_rule(name: str, index: int):
+    """Delete a world rule by index."""
+    try:
+        bible = delete_world_rule(name, index)
+        return {"success": True, "bible": bible}
+    except (FileNotFoundError, ValueError) as e:
+        raise HTTPException(404, str(e))
+
+
+class TimelineEntryRequest(BaseModel):
+    date: str = ""
+    event: str = ""
+    description: str = ""
+
+
+@router.post("/projects/{name}/timeline")
+async def api_add_timeline_entry(name: str, req: TimelineEntryRequest):
+    """Add a timeline entry."""
+    try:
+        bible = add_timeline_entry(name, {"date": req.date, "event": req.event, "description": req.description})
+        entry = bible["timeline"][-1] if bible.get("timeline") else {}
+        return {"success": True, "entry": entry, "bible": bible}
+    except FileNotFoundError:
+        raise HTTPException(404)
+
+
+@router.delete("/projects/{name}/timeline/{entry_id}")
+async def api_delete_timeline_entry(name: str, entry_id: str):
+    """Delete a timeline entry by ID."""
+    try:
+        bible = delete_timeline_entry(name, entry_id)
+        return {"success": True, "bible": bible}
+    except (FileNotFoundError, ValueError) as e:
+        raise HTTPException(404, str(e))
 
 
 @router.post("/chat")

@@ -171,6 +171,85 @@ def set_overview(project_name: str, overview: str) -> dict:
     return save_project(project_name, bible)
 
 
+def delete_character(project_name: str, character_id: str) -> dict:
+    """Delete a character from a project by ID."""
+    bible = load_project(project_name)
+    original_count = len(bible["characters"])
+    bible["characters"] = [c for c in bible["characters"] if c.get("id") != character_id]
+    if len(bible["characters"]) == original_count:
+        raise ValueError(f"Character '{character_id}' not found")
+    _add_to_version_history(bible, f"Deleted character ID: {character_id}")
+    return save_project(project_name, bible)
+
+
+def delete_location(project_name: str, location_id: str) -> dict:
+    """Delete a location from a project by ID."""
+    bible = load_project(project_name)
+    original_count = len(bible["locations"])
+    bible["locations"] = [l for l in bible["locations"] if l.get("id") != location_id]
+    if len(bible["locations"]) == original_count:
+        raise ValueError(f"Location '{location_id}' not found")
+    return save_project(project_name, bible)
+
+
+def add_story_outline_point(project_name: str, point: str) -> dict:
+    """Add a story outline point."""
+    bible = load_project(project_name)
+    bible.setdefault("story_outline", []).append(point)
+    _add_to_version_history(bible, f"Added outline point: {point[:50]}")
+    return save_project(project_name, bible)
+
+
+def delete_story_outline_point(project_name: str, index: int) -> dict:
+    """Delete a story outline point by index."""
+    bible = load_project(project_name)
+    if index < 0 or index >= len(bible.get("story_outline", [])):
+        raise ValueError(f"Outline point at index {index} not found")
+    removed = bible["story_outline"].pop(index)
+    _add_to_version_history(bible, f"Removed outline point: {removed[:50]}")
+    return save_project(project_name, bible)
+
+
+def add_world_rule(project_name: str, rule: str) -> dict:
+    """Add a world rule."""
+    bible = load_project(project_name)
+    bible.setdefault("world_rules", []).append(rule)
+    _add_to_version_history(bible, f"Added world rule: {rule[:50]}")
+    return save_project(project_name, bible)
+
+
+def delete_world_rule(project_name: str, index: int) -> dict:
+    """Delete a world rule by index."""
+    bible = load_project(project_name)
+    if index < 0 or index >= len(bible.get("world_rules", [])):
+        raise ValueError(f"World rule at index {index} not found")
+    removed = bible["world_rules"].pop(index)
+    _add_to_version_history(bible, f"Removed world rule: {removed[:50]}")
+    return save_project(project_name, bible)
+
+
+def add_timeline_entry(project_name: str, entry: dict) -> dict:
+    """Add a timeline entry."""
+    bible = load_project(project_name)
+    entry.setdefault("id", _next_id(bible.get("timeline", [])))
+    entry.setdefault("date", "")
+    entry.setdefault("event", "")
+    entry.setdefault("description", "")
+    bible.setdefault("timeline", []).append(entry)
+    _add_to_version_history(bible, f"Added timeline entry: {entry.get('event', '')[:50]}")
+    return save_project(project_name, bible)
+
+
+def delete_timeline_entry(project_name: str, entry_id: str) -> dict:
+    """Delete a timeline entry by ID."""
+    bible = load_project(project_name)
+    original_count = len(bible.get("timeline", []))
+    bible["timeline"] = [t for t in bible["timeline"] if t.get("id") != entry_id]
+    if len(bible["timeline"]) == original_count:
+        raise ValueError(f"Timeline entry '{entry_id}' not found")
+    return save_project(project_name, bible)
+
+
 # ──────────────────────────────────────────
 #  Internals
 # ──────────────────────────────────────────

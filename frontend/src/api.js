@@ -52,10 +52,53 @@ export const api = {
       body: JSON.stringify(data),
     }),
 
+  deleteCharacter: (name, characterId) =>
+    request(`/projects/${encodeURIComponent(name)}/characters/${encodeURIComponent(characterId)}`, {
+      method: 'DELETE',
+    }),
+
   addLocation: (name, data) =>
     request(`/projects/${encodeURIComponent(name)}/locations`, {
       method: 'POST',
       body: JSON.stringify(data),
+    }),
+
+  deleteLocation: (name, locationId) =>
+    request(`/projects/${encodeURIComponent(name)}/locations/${encodeURIComponent(locationId)}`, {
+      method: 'DELETE',
+    }),
+
+  addOutlinePoint: (name, point) =>
+    request(`/projects/${encodeURIComponent(name)}/outline`, {
+      method: 'POST',
+      body: JSON.stringify({ point }),
+    }),
+
+  deleteOutlinePoint: (name, index) =>
+    request(`/projects/${encodeURIComponent(name)}/outline/${index}`, {
+      method: 'DELETE',
+    }),
+
+  addWorldRule: (name, rule) =>
+    request(`/projects/${encodeURIComponent(name)}/rules`, {
+      method: 'POST',
+      body: JSON.stringify({ rule }),
+    }),
+
+  deleteWorldRule: (name, index) =>
+    request(`/projects/${encodeURIComponent(name)}/rules/${index}`, {
+      method: 'DELETE',
+    }),
+
+  addTimelineEntry: (name, data) =>
+    request(`/projects/${encodeURIComponent(name)}/timeline`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  deleteTimelineEntry: (name, entryId) =>
+    request(`/projects/${encodeURIComponent(name)}/timeline/${encodeURIComponent(entryId)}`, {
+      method: 'DELETE',
     }),
 
   chat: (message, projectName, messages) =>

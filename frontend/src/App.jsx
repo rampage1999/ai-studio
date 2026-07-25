@@ -33,6 +33,19 @@ function App() {
   const [artOutput, setArtOutput] = useState(null)
   const [artFullscreen, setArtFullscreen] = useState(null)
 
+  // Inline chapter editing
+  const [editingChapterId, setEditingChapterId] = useState(null)
+  const [editChapterTitle, setEditChapterTitle] = useState('')
+  const [editChapterContent, setEditChapterContent] = useState('')
+  const [savingChapter, setSavingChapter] = useState(false)
+
+  // Story outline & world rules
+  const [newOutlinePoint, setNewOutlinePoint] = useState('')
+  const [newWorldRule, setNewWorldRule] = useState('')
+
+  // Timeline
+  const [timelineForm, setTimelineForm] = useState({ date: '', event: '', description: '' })
+
   useEffect(() => {
     api.listProjects().then(d => setProjects(d.projects)).catch(console.error)
   }, [])
@@ -47,8 +60,17 @@ function App() {
     setChat({ messages: [{ role: 'system', content: `Loaded: ${d.bible.title} (${d.bible.genre})` }], input: '' })
     setActiveTab('chat')
     setArtOutput(null)
-    // Fetch available ComfyUI models
+    setEditingChapterId(null)
+    setNewOutlinePoint('')
+    setNewWorldRule('')
+    setTimelineForm({ date: '', event: '', description: '' })
     api.listComfyModels?.().then(r => setModels(r.models || [])).catch(() => {})
+  }
+
+  const refreshBible = async () => {
+    if (!currentProject) return
+    const d = await api.getProject(currentProject)
+    setBible(d.bible)
   }
 
   const createProject = async (e) => {
@@ -73,11 +95,40 @@ function App() {
     setBible(d.bible)
   }
 
+  const startEditChapter = (ch) => {
+    setEditingChapterId(ch.id)
+    setEditChapterTitle(ch.title || '')
+    setEditChapterContent(ch.content || '')
+  }
+
+  const cancelEditChapter = () => {
+    setEditingChapterId(null)
+    setEditChapterTitle('')
+    setEditChapterContent('')
+  }
+
+  const saveEditChapter = async () => {
+    setSavingChapter(true)
+    await api.updateChapter(currentProject, editingChapterId, {
+      title: editChapterTitle,
+      content: editChapterContent,
+    })
+    await refreshBible()
+    setEditingChapterId(null)
+    setSavingChapter(false)
+  }
+
   const addChar = async (e) => {
     e.preventDefault()
     const d = await api.addCharacter(currentProject, newChar)
     setBible(d.bible)
     setNewChar({ name: '', description: '', role: '' })
+  }
+
+  const deleteChar = async (charId) => {
+    if (!confirm('Remove this character from the Bible?')) return
+    const d = await api.deleteCharacter(currentProject, charId)
+    setBible(d.bible)
   }
 
   const addLoc = async (e) => {
@@ -87,11 +138,59 @@ function App() {
     setNewLoc({ name: '', description: '' })
   }
 
+  const deleteLoc = async (locId) => {
+    if (!confirm('Remove this location from the Bible?')) return
+    const d = await api.deleteLocation(currentProject, locId)
+    setBible(d.bible)
+  }
+
   const addChapter = async (e) => {
     e.preventDefault()
     const d = await api.addChapter(currentProject, newChapter)
     setBible(d.bible)
     setNewChapter({ title: '', content: '' })
+  }
+
+  const addOutlinePoint = async (e) => {
+    e.preventDefault()
+    if (!newOutlinePoint.trim()) return
+    const d = await api.addOutlinePoint(currentProject, newOutlinePoint)
+    setBible(d.bible)
+    setNewOutlinePoint('')
+  }
+
+  const deleteOutlinePoint = async (index) => {
+    if (!confirm('Remove this outline point?')) return
+    const d = await api.deleteOutlinePoint(currentProject, index)
+    setBible(d.bible)
+  }
+
+  const addRule = async (e) => {
+    e.preventDefault()
+    if (!newWorldRule.trim()) return
+    const d = await api.addWorldRule(currentProject, newWorldRule)
+    setBible(d.bible)
+    setNewWorldRule('')
+  }
+
+  const deleteRule = async (index) => {
+    if (!confirm('Remove this world rule?')) return
+    const d = await api.deleteWorldRule(currentProject, index)
+    setBible(d.bible)
+  }
+
+  const addTimelineEntry = async (e) => {
+    e.preventDefault()
+    if (!timelineForm.event.trim()) return
+    const d = await api.addTimelineEntry(currentProject, timelineForm)
+    setBible(d.bible)
+    setTimelineForm({ date: '', event: '', description: '' })
+  }
+
+  const deleteTimelineEntry = async (entryId) => {
+    if (!confirm('Remove this timeline entry?')) return
+    const d = await api.deleteTimelineEntry(currentProject, entryId)
+    setBible(d.bible)
   }
 
   const sendChat = async (e) => {
@@ -118,7 +217,6 @@ function App() {
     try {
       const d = await api.generateImage(currentProject, artForm)
       setArtOutput(d.result)
-      // Refresh Bible to get updated generated_images
       const proj = await api.getProject(currentProject)
       setBible(proj.bible)
     } catch (err) {
@@ -132,6 +230,8 @@ function App() {
     const base = import.meta.env.VITE_API_BASE || '/api'
     return `${base}/projects/${currentProject}/images/${filename}`
   }
+
+  const tabs = ['chat', 'bible', 'chapters', 'characters', 'locations', 'timeline', 'art']
 
   return (
     <div className="app">
@@ -200,6 +300,7 @@ function App() {
                 <button className={activeTab === 'chapters' ? 'active' : ''} onClick={() => setActiveTab('chapters')}>Chapters</button>
                 <button className={activeTab === 'characters' ? 'active' : ''} onClick={() => setActiveTab('characters')}>Characters</button>
                 <button className={activeTab === 'locations' ? 'active' : ''} onClick={() => setActiveTab('locations')}>Locations</button>
+                <button className={activeTab === 'timeline' ? 'active' : ''} onClick={() => setActiveTab('timeline')}>Timeline</button>
                 <button className={activeTab === 'art' ? 'active' : ''} onClick={() => setActiveTab('art')}>Art</button>
                 <div className="export-dropdown">
                   <button className="export-btn" onClick={() => setShowExport(!showExport)} title="Export">⬇ Export</button>
@@ -248,14 +349,36 @@ function App() {
                 <section className="bible-section">
                   <h3>Story Outline</h3>
                   {bible.story_outline?.length > 0 ? (
-                    <ul>{bible.story_outline.map((p, i) => <li key={i}>{p}</li>)}</ul>
+                    <ul className="outline-list">
+                      {bible.story_outline.map((p, i) => (
+                        <li key={i}>
+                          <span className="outline-text">{i + 1}. {p}</span>
+                          <button onClick={() => deleteOutlinePoint(i)} className="delete-sm-btn" title="Remove">✕</button>
+                        </li>
+                      ))}
+                    </ul>
                   ) : <p className="empty-hint">No outline yet.</p>}
+                  <form onSubmit={addOutlinePoint} className="inline-form compact-form">
+                    <input placeholder="Add outline point..." value={newOutlinePoint} onChange={e => setNewOutlinePoint(e.target.value)} />
+                    <button type="submit" className="btn-sm">Add</button>
+                  </form>
                 </section>
                 <section className="bible-section">
                   <h3>World Rules</h3>
                   {bible.world_rules?.length > 0 ? (
-                    <ul>{bible.world_rules.map((r, i) => <li key={i}>{r}</li>)}</ul>
+                    <ul className="outline-list">
+                      {bible.world_rules.map((r, i) => (
+                        <li key={i}>
+                          <span className="outline-text">{r}</span>
+                          <button onClick={() => deleteRule(i)} className="delete-sm-btn" title="Remove">✕</button>
+                        </li>
+                      ))}
+                    </ul>
                   ) : <p className="empty-hint">No world rules yet.</p>}
+                  <form onSubmit={addRule} className="inline-form compact-form">
+                    <input placeholder="Add world rule..." value={newWorldRule} onChange={e => setNewWorldRule(e.target.value)} />
+                    <button type="submit" className="btn-sm">Add</button>
+                  </form>
                 </section>
               </div>
             )}
@@ -271,9 +394,38 @@ function App() {
                   <div className="chapter-list">
                     {bible.chapters.map((ch, i) => (
                       <div key={ch.id || i} className="chapter-card">
-                        <h4>{ch.title || `Chapter ${i + 1}`}</h4>
-                        {ch.content && <p>{ch.content.slice(0, 300)}{ch.content.length > 300 ? '...' : ''}</p>}
-                        <span className="chapter-meta">Created: {ch.created?.slice(0, 10)}</span>
+                        {editingChapterId === ch.id ? (
+                          <div className="chapter-editor">
+                            <input
+                              className="chapter-edit-title"
+                              value={editChapterTitle}
+                              onChange={e => setEditChapterTitle(e.target.value)}
+                              placeholder="Chapter title"
+                            />
+                            <textarea
+                              className="chapter-edit-content"
+                              value={editChapterContent}
+                              onChange={e => setEditChapterContent(e.target.value)}
+                              rows={10}
+                              placeholder="Write chapter content..."
+                            />
+                            <div className="chapter-edit-actions">
+                              <button onClick={saveEditChapter} className="btn-sm" disabled={savingChapter}>
+                                {savingChapter ? 'Saving...' : 'Save'}
+                              </button>
+                              <button onClick={cancelEditChapter} className="btn-secondary btn-sm">Cancel</button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="chapter-header" onClick={() => startEditChapter(ch)}>
+                              <h4>{ch.title || `Chapter ${i + 1}`}</h4>
+                              <span className="chapter-edit-hint">click to edit</span>
+                            </div>
+                            {ch.content && <p>{ch.content.slice(0, 300)}{ch.content.length > 300 ? '...' : ''}</p>}
+                            <span className="chapter-meta">Created: {ch.created?.slice(0, 10)}</span>
+                          </>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -293,7 +445,10 @@ function App() {
                   <div className="card-grid">
                     {bible.characters.map((ch, i) => (
                       <div key={ch.id || i} className="card">
-                        <h4>{ch.name}</h4>
+                        <div className="card-header-row">
+                          <h4>{ch.name}</h4>
+                          <button onClick={() => deleteChar(ch.id)} className="delete-sm-btn" title="Delete character">✕</button>
+                        </div>
                         {ch.role && <span className="badge">{ch.role}</span>}
                         {ch.description && <p>{ch.description}</p>}
                       </div>
@@ -314,12 +469,59 @@ function App() {
                   <div className="card-grid">
                     {bible.locations.map((loc, i) => (
                       <div key={loc.id || i} className="card">
-                        <h4>{loc.name}</h4>
+                        <div className="card-header-row">
+                          <h4>{loc.name}</h4>
+                          <button onClick={() => deleteLoc(loc.id)} className="delete-sm-btn" title="Delete location">✕</button>
+                        </div>
                         {loc.description && <p>{loc.description}</p>}
                       </div>
                     ))}
                   </div>
                 ) : <p className="empty-hint">No locations yet.</p>}
+              </div>
+            )}
+
+            {activeTab === 'timeline' && (
+              <div className="timeline-panel">
+                <form onSubmit={addTimelineEntry} className="inline-form">
+                  <input
+                    placeholder="Date (e.g. '3024 AE', 'Chapter 3')"
+                    value={timelineForm.date}
+                    onChange={e => setTimelineForm(t => ({ ...t, date: e.target.value }))}
+                  />
+                  <input
+                    placeholder="Event name"
+                    value={timelineForm.event}
+                    onChange={e => setTimelineForm(t => ({ ...t, event: e.target.value }))}
+                    required
+                  />
+                  <textarea
+                    placeholder="Description (optional)"
+                    value={timelineForm.description}
+                    onChange={e => setTimelineForm(t => ({ ...t, description: e.target.value }))}
+                    rows={2}
+                  />
+                  <button type="submit" className="btn-sm">Add Event</button>
+                </form>
+                {bible.timeline?.length > 0 ? (
+                  <div className="timeline-list">
+                    {[...bible.timeline].reverse().map((entry) => (
+                      <div key={entry.id} className="timeline-card">
+                        <div className="timeline-marker" />
+                        <div className="timeline-content">
+                          <div className="timeline-header-row">
+                            <div>
+                              {entry.date && <span className="timeline-date">{entry.date}</span>}
+                              <h4>{entry.event}</h4>
+                            </div>
+                            <button onClick={() => deleteTimelineEntry(entry.id)} className="delete-sm-btn" title="Delete entry">✕</button>
+                          </div>
+                          {entry.description && <p>{entry.description}</p>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : <p className="empty-hint">No timeline events yet. Track key story moments here.</p>}
               </div>
             )}
 

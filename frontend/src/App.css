@@ -512,3 +512,198 @@ ul.bible-list li { margin-bottom: 4px; font-size: 14px; color: var(--text-dim); 
   background: var(--surface);
   color: var(--accent);
 }
+
+/* ── Inline Chapter Editing ── */
+.chapter-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+.chapter-header:hover h4 {
+  color: var(--accent);
+}
+.chapter-edit-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.chapter-header:hover .chapter-edit-hint {
+  opacity: 1;
+}
+.chapter-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.chapter-edit-title {
+  font-size: 16px;
+  font-weight: 600;
+  padding: 8px 12px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+}
+.chapter-edit-content {
+  width: 100%;
+  min-height: 200px;
+  padding: 12px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.7;
+  resize: vertical;
+  font-family: inherit;
+}
+.chapter-edit-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* ── Card Header Row (for delete button) ── */
+.card-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+.card-header-row h4 {
+  flex: 1;
+}
+
+/* ── Delete Small Button ── */
+.delete-sm-btn {
+  background: none;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 12px;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+.delete-sm-btn:hover {
+  color: var(--accent);
+  background: rgba(232,64,64,0.15);
+  border-color: var(--accent-dim);
+}
+
+/* ── Outline / Rules List ── */
+.outline-list {
+  list-style: none;
+  margin: 8px 0;
+}
+.outline-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+.outline-list li:hover {
+  background: var(--surface);
+}
+.outline-text {
+  flex: 1;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* ── Compact inline form ── */
+.compact-form {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+.compact-form input {
+  flex: 1;
+  padding: 8px 12px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 13px;
+}
+
+/* ── Timeline ── */
+.timeline-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.timeline-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding-left: 16px;
+}
+.timeline-card {
+  display: flex;
+  gap: 16px;
+  padding: 16px 12px;
+  border-left: 2px solid var(--border);
+  position: relative;
+  transition: background 0.15s;
+}
+.timeline-card:hover {
+  background: var(--surface);
+}
+.timeline-card:last-child {
+  border-left-color: transparent;
+}
+.timeline-marker {
+  position: absolute;
+  left: -5px;
+  top: 20px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--bg);
+  flex-shrink: 0;
+}
+.timeline-content {
+  flex: 1;
+}
+.timeline-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+.timeline-header-row div {
+  flex: 1;
+}
+.timeline-date {
+  display: inline-block;
+  background: var(--accent-dim);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.timeline-content h4 {
+  font-size: 15px;
+  color: var(--text);
+  margin: 0;
+}
+.timeline-content p {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 4px;
+  line-height: 1.5;
+}
