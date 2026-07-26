@@ -2,13 +2,14 @@
 Studio Discord Bot — A dark bridge between Discord and the AI Studio.
 
 Slash Commands:
-  /projects          — List all projects in the forge
-  /project <name>    — Show project Bible summary
-  /write <project>   — Write the next chapter via the Director
+  /projects              — List all projects in the forge
+  /project <name>        — Show project Bible summary
+  /write <project>       — Write the next chapter via the Director
   /art <project> <prompt> — Generate an image via ComfyUI
   /director <project> <message> — Speak to the Director agent
   /export <project> <format> — Export and receive the project file
-  /presets <project> — List saved art style presets
+  /presets <project>     — List saved art style presets
+  /create-channel <project> — Forge a dedicated channel for a project
 """
 
 import asyncio
@@ -330,6 +331,81 @@ async def cmd_presets(interaction: discord.Interaction, project: str):
                 inline=False,
             )
         await interaction.followup.send(embed=embed)
+    except Exception as e:
+        await interaction.followup.send(f"Error: {e}", ephemeral=True)
+
+
+@client.tree.command(name="create-channel", description="Forge a dedicated Discord channel for a project")
+@app_commands.describe(project="The project name")
+@app_commands.checks.has_permissions(manage_channels=True)
+async def cmd_create_channel(interaction: discord.Interaction, project: str):
+    """Create a dedicated text channel for a project."""
+    await interaction.response.defer(ephemeral=False)
+    try:
+        # Verify the project exists first
+        data = await api_get(f"/projects/{project}")
+        bible = data.get("bible", {})
+        project_title = bible.get("title", project)
+
+        channel_name = f"studio-{project.lower().replace('_', '-').replace(' ', '-')}"
+        # Check if a channel with this name already exists in the guild
+        existing = discord.utils.get(interaction.guild.text_channels, name=channel_name)
+        if existing:
+            await interaction.followup.send(
+                f"A channel for `{project}` already exists: {existing.mention}",
+                ephemeral=False,
+            )
+            return
+
+        # Create the channel under a "Studio" category if it exists, otherwise at top level
+        category = discord.utils.get(interaction.guild.categories, name="AI Studio")
+        overwrites = {
+            interaction.guild.default_role: discord.PermissionOverwrite(read_messages=True, send_messages=True),
+        }
+
+        channel = await interaction.guild.create_text_channel(
+            name=channel_name,
+            category=category,
+            topic=f"AI Studio — {project_title} | Bible: {len(bible.get('chapters', []))} chapters, {len(bible.get('characters', []))} characters",
+            overwrites=overwrites,
+            reason=f"Created by {interaction.user} via /create-channel",
+        )
+
+        # Post a welcome message with available commands
+        embed = discord.Embed(
+            title=f"\u2694\uFE0F {project_title} — Channel Forged",
+            description=(
+                f"Welcome to the **{project_title}** channel. Speak to the Studio from here.\n\n"
+                f"**Commands you can use:**\n"
+                f"`/project {project}` — See the Bible\n"
+                f"`/write {project}` — Write the next chapter\n"
+                f"`/art {project} <prompt>` — Generate art\n"
+                f"`/director {project} <message>` — Chat with the Director\n"
+                f"`/export {project} <format>` — Export the story\n"
+                f"`/presets {project}` — List art presets"
+            ),
+            color=discord.Color.dark_red(),
+        )
+        embed.set_footer(text="The forge awaits your command.")
+        await channel.send(embed=embed)
+
+        await interaction.followup.send(
+            f"Channel forged: {channel.mention}",
+            ephemeral=False,
+        )
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 404:
+            await interaction.followup.send(
+                f"Project `{project}` not found. Use `/projects` to see all projects.",
+                ephemeral=True,
+            )
+        else:
+            await interaction.followup.send(f"Error: {e}", ephemeral=True)
+    except discord.Forbidden:
+        await interaction.followup.send(
+            "I don't have permission to create channels. A Sith Lord must grant me the `Manage Channels` permission.",
+            ephemeral=True,
+        )
     except Exception as e:
         await interaction.followup.send(f"Error: {e}", ephemeral=True)
 
