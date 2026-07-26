@@ -1,0 +1,17 @@
+[Unit]
+Description=AI Studio Backend — FastAPI creative writing forge
+After=network.target
+
+[Service]
+Type=simple
+User=dad
+WorkingDirectory=/home/dad/ai-studio
+EnvironmentFile=/home/dad/ai-studio/.env
+ExecStart=/home/dad/ai-studio/.venv/bin/uvicorn backend.main:app --host 0.0.0.0 --port 8800
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

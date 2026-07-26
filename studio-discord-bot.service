@@ -1,0 +1,18 @@
+[Unit]
+Description=AI Studio Discord Bot — Dark bridge between Discord and the forge
+After=network.target studio-backend.service
+Wants=studio-backend.service
+
+[Service]
+Type=simple
+User=dad
+WorkingDirectory=/home/dad/ai-studio
+EnvironmentFile=/home/dad/ai-studio/.env
+ExecStart=/home/dad/ai-studio/.venv/bin/python /home/dad/ai-studio/discord_bot.py
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
