@@ -31,6 +31,8 @@ from backend.core.project_manager import (
     delete_world_rule,
     add_timeline_entry,
     delete_timeline_entry,
+    add_art_preset,
+    delete_art_preset,
 )
 from backend.core.agent_router import AgentRouter
 from backend.agents.artist import list_models, generate_image
@@ -558,6 +560,52 @@ async def api_serve_image(name: str, filename: str):
     import mimetypes
     mime, _ = mimetypes.guess_type(str(img_path))
     return FileResponse(str(img_path), media_type=mime or "image/png")
+
+
+# ──────────────────────────────────────────
+#  Art Preset Routes
+# ──────────────────────────────────────────
+
+
+class ArtPresetRequest(BaseModel):
+    name: str
+    prompt_suffix: str = ""
+    negative_prompt: str = ""
+    model: str = "dreamShaper.safetensors"
+    width: int = 1024
+    height: int = 1024
+    steps: int = 25
+    cfg: float = 7.0
+
+
+@router.post("/projects/{name}/presets")
+async def api_add_preset(name: str, req: ArtPresetRequest):
+    """Save an art style preset."""
+    try:
+        bible = add_art_preset(name, {
+            "name": req.name,
+            "prompt_suffix": req.prompt_suffix,
+            "negative_prompt": req.negative_prompt,
+            "model": req.model,
+            "width": req.width,
+            "height": req.height,
+            "steps": req.steps,
+            "cfg": req.cfg,
+        })
+        preset = bible["art_presets"][-1] if bible.get("art_presets") else {}
+        return {"success": True, "preset": preset, "bible": bible}
+    except FileNotFoundError:
+        raise HTTPException(404)
+
+
+@router.delete("/projects/{name}/presets/{preset_id}")
+async def api_delete_preset(name: str, preset_id: str):
+    """Delete an art style preset."""
+    try:
+        bible = delete_art_preset(name, preset_id)
+        return {"success": True, "bible": bible}
+    except (FileNotFoundError, ValueError) as e:
+        raise HTTPException(404, str(e))
 
 
 # ──────────────────────────────────────────

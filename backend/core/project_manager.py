@@ -261,6 +261,35 @@ def delete_timeline_entry(project_name: str, entry_id: str) -> dict:
     return save_project(project_name, bible)
 
 
+def add_art_preset(project_name: str, preset: dict) -> dict:
+    """Add an art style preset to a project."""
+    bible = load_project(project_name)
+    presets = bible.setdefault("art_presets", [])
+    preset.setdefault("id", _next_id(presets))
+    preset.setdefault("prompt_suffix", "")
+    preset.setdefault("negative_prompt", "")
+    preset.setdefault("model", "dreamShaper.safetensors")
+    preset.setdefault("width", 1024)
+    preset.setdefault("height", 1024)
+    preset.setdefault("steps", 25)
+    preset.setdefault("cfg", 7.0)
+    preset.setdefault("created", datetime.utcnow().isoformat())
+    presets.append(preset)
+    _add_to_version_history(bible, f"Added art preset: {preset.get('name', 'Untitled')}")
+    return save_project(project_name, bible)
+
+
+def delete_art_preset(project_name: str, preset_id: str) -> dict:
+    """Delete an art style preset by ID."""
+    bible = load_project(project_name)
+    presets = bible.get("art_presets", [])
+    original_count = len(presets)
+    bible["art_presets"] = [p for p in presets if p.get("id") != preset_id]
+    if len(bible["art_presets"]) == original_count:
+        raise ValueError(f"Art preset '{preset_id}' not found")
+    return save_project(project_name, bible)
+
+
 # ──────────────────────────────────────────
 #  Internals
 # ──────────────────────────────────────────

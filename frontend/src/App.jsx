@@ -44,6 +44,11 @@ function App() {
   const [generatingPortraitId, setGeneratingPortraitId] = useState(null)
   const [portraitFullscreen, setPortraitFullscreen] = useState(null)
 
+  // Art presets
+  const [showSavePreset, setShowSavePreset] = useState(false)
+  const [newPreset, setNewPreset] = useState({ name: '', prompt_suffix: '' })
+  const [deletingPresetId, setDeletingPresetId] = useState(null)
+
   // Story outline & world rules
   const [newOutlinePoint, setNewOutlinePoint] = useState('')
   const [newWorldRule, setNewWorldRule] = useState('')
@@ -252,6 +257,47 @@ function App() {
       setArtOutput({ error: err.message })
     }
     setGenerating(false)
+  }
+
+  const savePreset = async (e) => {
+    e.preventDefault()
+    const data = {
+      name: newPreset.name,
+      prompt_suffix: newPreset.prompt_suffix,
+      negative_prompt: artForm.negative_prompt,
+      model: artForm.model,
+      width: artForm.width,
+      height: artForm.height,
+      steps: artForm.steps,
+      cfg: artForm.cfg,
+    }
+    await api.addPreset(currentProject, data)
+    await refreshBible()
+    setShowSavePreset(false)
+    setNewPreset({ name: '', prompt_suffix: '' })
+  }
+
+  const applyPreset = (preset) => {
+    setArtForm(a => ({
+      ...a,
+      model: preset.model || a.model,
+      width: preset.width || a.width,
+      height: preset.height || a.height,
+      steps: preset.steps || a.steps,
+      cfg: preset.cfg ?? a.cfg,
+      negative_prompt: preset.negative_prompt !== undefined ? preset.negative_prompt : a.negative_prompt,
+    }))
+    if (preset.prompt_suffix) {
+      setArtForm(a => ({ ...a, prompt: a.prompt ? `${a.prompt}, ${preset.prompt_suffix}` : preset.prompt_suffix }))
+    }
+  }
+
+  const deletePreset = async (presetId) => {
+    if (!confirm('Delete this art preset?')) return
+    setDeletingPresetId(presetId)
+    await api.deletePreset(currentProject, presetId)
+    await refreshBible()
+    setDeletingPresetId(null)
   }
 
   // Build image URL helper
@@ -594,6 +640,24 @@ function App() {
                     onChange={e => setArtForm(a => ({ ...a, negative_prompt: e.target.value }))}
                   />
                   <div className="art-controls">
+                    {/* Preset selector */}
+                    {bible.art_presets?.length > 0 && (
+                      <select
+                        className="preset-select"
+                        defaultValue=""
+                        onChange={e => {
+                          if (!e.target.value) return
+                          const preset = bible.art_presets.find(p => p.id === e.target.value)
+                          if (preset) applyPreset(preset)
+                          e.target.value = ""
+                        }}
+                      >
+                        <option value="">Apply preset...</option>
+                        {bible.art_presets.map(p => (
+                          <option key={p.id} value={p.id}>{p.name}</option>
+                        ))}
+                      </select>
+                    )}
                     <select
                       value={artForm.model}
                       onChange={e => setArtForm(a => ({ ...a, model: e.target.value }))}
@@ -632,8 +696,37 @@ function App() {
                     <button type="submit" className="btn-primary" disabled={generating}>
                       {generating ? 'Generating...' : 'Generate'}
                     </button>
+                    <button type="button" className="btn-secondary" onClick={() => setShowSavePreset(true)}>
+                      💾 Save Preset
+                    </button>
                   </div>
                 </form>
+
+                {showSavePreset && (
+                  <div className="modal-overlay" onClick={() => setShowSavePreset(false)}>
+                    <div className="modal" onClick={e => e.stopPropagation()}>
+                      <h2>Save Art Preset</h2>
+                      <form onSubmit={savePreset}>
+                        <input
+                          placeholder="Preset name (e.g. 'Cinematic Portrait')"
+                          value={newPreset.name}
+                          onChange={e => setNewPreset(p => ({ ...p, name: e.target.value }))}
+                          required
+                        />
+                        <input
+                          placeholder="Prompt suffix (appended to your prompt)"
+                          value={newPreset.prompt_suffix}
+                          onChange={e => setNewPreset(p => ({ ...p, prompt_suffix: e.target.value }))}
+                        />
+                        <p className="modal-info">Current settings (model, size, steps, CFG, negative prompt) will be saved with this preset.</p>
+                        <div className="modal-actions">
+                          <button type="submit" className="btn-primary">Save Preset</button>
+                          <button type="button" className="btn-secondary" onClick={() => setShowSavePreset(false)}>Cancel</button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                )}
 
                 {artOutput && artOutput.error && (
                   <div className="art-error">
@@ -686,6 +779,35 @@ function App() {
                     <p className="empty-hint">No images generated yet. Use the form above to create art.</p>
                   )}
                 </div>
+
+                {bible.art_presets?.length > 0 && (
+                  <div className="art-gallery-section">
+                    <h3>Saved Presets</h3>
+                    <div className="card-grid">
+                      {bible.art_presets.map(p => (
+                        <div key={p.id} className="preset-card">
+                          <div className="card-header-row">
+                            <h4>{p.name}</h4>
+                            <button
+                              onClick={() => deletePreset(p.id)}
+                              className="delete-sm-btn"
+                              title="Delete preset"
+                              disabled={deletingPresetId === p.id}
+                            >✕</button>
+                          </div>
+                          {p.prompt_suffix && <p className="preset-suffix">"{p.prompt_suffix}"</p>}
+                          <div className="preset-meta-row">
+                            <span>{p.model?.replace('.safetensors', '')}</span>
+                            <span>{p.width}×{p.height}</span>
+                            <span>{p.steps} steps</span>
+                            <span>CFG {p.cfg}</span>
+                          </div>
+                          <button onClick={() => applyPreset(p)} className="btn-apply-preset">Apply</button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {artFullscreen && (
                   <div className="modal-overlay" onClick={() => setArtFullscreen(null)}>

@@ -129,4 +129,15 @@ export const api = {
 
   exportProject: (name, format) =>
     `${API_BASE}/projects/${encodeURIComponent(name)}/export/${format}`,
+
+  addPreset: (name, data) =>
+    request(`/projects/${encodeURIComponent(name)}/presets`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  deletePreset: (name, presetId) =>
+    request(`/projects/${encodeURIComponent(name)}/presets/${encodeURIComponent(presetId)}`, {
+      method: 'DELETE',
+    }),
 }
